@@ -1,0 +1,11 @@
+services:
+  - type: web
+    runtime: node
+    name: friendsforever
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeployTrigger: commit
+    envVars:
+      - key: CAMPAIGN_API_BASE
+        value: https://campaign-manager-api-8zjt.onrender.com
