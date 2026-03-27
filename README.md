@@ -20,3 +20,5 @@ Open:
 ## Render
 
 Use the included `render.yaml` blueprint.
+
+Health check endpoint: `/healthz`

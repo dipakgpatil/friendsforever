@@ -9,6 +9,10 @@ const campaignApiBase =
 
 app.use(express.static(path.join(__dirname, "public")));
 
+app.get("/healthz", (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 app.get("/config.js", (_req, res) => {
   res.type("application/javascript");
   res.send(`window.__APP_CONFIG__ = ${JSON.stringify({

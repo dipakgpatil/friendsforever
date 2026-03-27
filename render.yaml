@@ -3,9 +3,10 @@ services:
     runtime: node
     name: friendsforever
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm start
     autoDeployTrigger: commit
+    healthCheckPath: /healthz
     envVars:
       - key: CAMPAIGN_API_BASE
         value: https://campaign-manager-api-8zjt.onrender.com
