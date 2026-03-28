@@ -10,6 +10,10 @@
   const progressMeta = document.getElementById("progressMeta");
   const progressTrack =
     progressWrap && progressWrap.querySelector(".progress-track");
+  const postDownload = document.getElementById("postDownload");
+  const installBtn = document.getElementById("installBtn");
+  const locateBtn = document.getElementById("locateBtn");
+  const installHint = document.getElementById("installHint");
 
   const params = new URLSearchParams(window.location.search);
   const inviteCode = (params.get("invite_code") || "").trim();
@@ -17,9 +21,23 @@
 
   inviteCodeInput.value = inviteCode;
 
+  let lastDownload = {
+    platform: "",
+    filename: "",
+    blob: null,
+    blobUrl: "",
+  };
+
   function setStatus(message, isError) {
     statusEl.textContent = message || "";
     statusEl.classList.toggle("error", Boolean(isError));
+  }
+
+  function setHint(message) {
+    if (!installHint) {
+      return;
+    }
+    installHint.textContent = message || "";
   }
 
   function formatBytes(bytes) {
@@ -34,6 +52,50 @@
       unitIndex += 1;
     }
     return `${size.toFixed(unitIndex >= 2 ? 2 : 0)} ${units[unitIndex]}`;
+  }
+
+  function clearDownloadState() {
+    if (lastDownload.blobUrl) {
+      window.URL.revokeObjectURL(lastDownload.blobUrl);
+    }
+    lastDownload = {
+      platform: "",
+      filename: "",
+      blob: null,
+      blobUrl: "",
+    };
+  }
+
+  function hidePostDownloadActions() {
+    if (!postDownload) {
+      return;
+    }
+    postDownload.classList.remove("active");
+    setHint("");
+  }
+
+  function showPostDownloadActions(platform, filename, blob) {
+    if (!postDownload) {
+      return;
+    }
+
+    clearDownloadState();
+    const blobUrl = window.URL.createObjectURL(blob);
+    lastDownload = {
+      platform,
+      filename,
+      blob,
+      blobUrl,
+    };
+
+    postDownload.classList.add("active");
+    if (platform === "android") {
+      setHint(
+        `Downloaded as ${filename}. If install does not open, tap "Find Downloaded File" for exact steps.`,
+      );
+    } else {
+      setHint(`Downloaded as ${filename}.`);
+    }
   }
 
   function resetProgress() {
@@ -89,6 +151,12 @@
     androidBtn.disabled = isLoading;
     iosBtn.disabled = isLoading;
     otpInput.disabled = isLoading;
+    if (installBtn) {
+      installBtn.disabled = isLoading;
+    }
+    if (locateBtn) {
+      locateBtn.disabled = isLoading;
+    }
   }
 
   function parseFilename(contentDisposition, fallback) {
@@ -144,6 +212,81 @@
     });
   }
 
+  async function openInstallForLastDownload() {
+    if (!lastDownload.blob || !lastDownload.blobUrl) {
+      setHint("Download APK first, then use Install APK.");
+      return;
+    }
+
+    if (lastDownload.platform !== "android") {
+      const link = document.createElement("a");
+      link.href = lastDownload.blobUrl;
+      link.target = "_blank";
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setHint("Opened downloaded file.");
+      return;
+    }
+
+    const fileForShare = new File([lastDownload.blob], lastDownload.filename, {
+      type: "application/vnd.android.package-archive",
+    });
+
+    try {
+      if (
+        navigator.canShare &&
+        navigator.share &&
+        navigator.canShare({ files: [fileForShare] })
+      ) {
+        await navigator.share({
+          title: "Install Campaign Manager",
+          text: "Open this APK with Package Installer",
+          files: [fileForShare],
+        });
+        setHint(
+          "Share sheet opened. Choose Package Installer / Files to continue install.",
+        );
+        return;
+      }
+    } catch (_) {
+      // Fallback below.
+    }
+
+    const link = document.createElement("a");
+    link.href = lastDownload.blobUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setHint(
+      "Install did not auto-open on this browser. Use 'Find Downloaded File' and open latest.apk from Downloads.",
+    );
+  }
+
+  async function showLocateSteps() {
+    const filename = lastDownload.filename || "latest.apk";
+    const steps = [
+      "1. Swipe down notification panel and tap the completed download.",
+      "2. If not visible, open Files/File Manager app.",
+      "3. Go to Downloads folder.",
+      `4. Tap ${filename} to install.`,
+    ].join(" ");
+
+    setHint(steps);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(filename);
+        setStatus(`Filename copied: ${filename}`, false);
+      } catch (_) {
+        // Ignore clipboard failures.
+      }
+    }
+  }
+
   async function downloadRelease(platform) {
     if (!inviteCode) {
       setStatus("Invite code is missing in the link.", true);
@@ -160,6 +303,7 @@
     }
 
     setLoading(true);
+    hidePostDownloadActions();
     resetProgress();
     showProgress();
     setProgress(0, 0);
@@ -184,7 +328,6 @@
 
       setStatus("Download in progress...");
       const blob = await downloadWithProgress(response, setProgress);
-      const blobUrl = window.URL.createObjectURL(blob);
 
       const fallbackName = platform === "android" ? "latest.apk" : "latest.ipa";
       const filename = parseFilename(
@@ -192,19 +335,22 @@
         fallbackName,
       );
 
+      const tempUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = blobUrl;
+      a.href = tempUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 4000);
+      window.setTimeout(() => window.URL.revokeObjectURL(tempUrl), 5000);
 
+      showPostDownloadActions(platform, filename, blob);
       setStatus(
-        `Download completed (${formatBytes(blob.size)}). Check your downloads folder if it did not open automatically.`,
+        `Download completed (${formatBytes(blob.size)}). You can now tap Install APK.`,
       );
     } catch (error) {
       setStatus(error.message || "Download failed.", true);
+      hidePostDownloadActions();
       resetProgress();
     } finally {
       setLoading(false);
@@ -212,6 +358,7 @@
   }
 
   resetProgress();
+  hidePostDownloadActions();
 
   androidBtn.addEventListener("click", function () {
     downloadRelease("android");
@@ -219,5 +366,21 @@
 
   iosBtn.addEventListener("click", function () {
     downloadRelease("ios");
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener("click", function () {
+      openInstallForLastDownload();
+    });
+  }
+
+  if (locateBtn) {
+    locateBtn.addEventListener("click", function () {
+      showLocateSteps();
+    });
+  }
+
+  window.addEventListener("beforeunload", function () {
+    clearDownloadState();
   });
 })();
