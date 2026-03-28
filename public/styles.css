@@ -82,6 +82,57 @@ input[readonly] {
   gap: 10px;
 }
 
+.progress-wrap {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+  display: none;
+}
+
+.progress-wrap.active {
+  display: block;
+}
+
+.progress-wrap.indeterminate .progress-fill {
+  width: 35% !important;
+  animation: progress-loop 1.2s ease-in-out infinite;
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--text-sub);
+}
+
+.progress-track {
+  margin-top: 8px;
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #14b8a6);
+  transition: width 0.16s linear;
+}
+
+.progress-meta {
+  margin: 8px 0 0;
+  color: var(--text-sub);
+  font-size: 0.82rem;
+  min-height: 16px;
+}
+
 .btn {
   border: 0;
   border-radius: 10px;
@@ -121,6 +172,15 @@ input[readonly] {
 
 .status.error {
   color: var(--danger);
+}
+
+@keyframes progress-loop {
+  0% {
+    transform: translateX(-70%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }
 
 @media (max-width: 560px) {

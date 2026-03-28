@@ -35,6 +35,17 @@
           <button id="iosBtn" class="btn btn-secondary">Download iOS</button>
         </div>
 
+        <section id="progressWrap" class="progress-wrap" aria-live="polite">
+          <div class="progress-head">
+            <span id="progressLabel">Download Progress</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <p id="progressMeta" class="progress-meta">0 MB / 0 MB</p>
+        </section>
+
         <p id="status" class="status"></p>
       </section>
     </main>
